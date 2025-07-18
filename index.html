@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HR Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar for a cleaner look */
+        #chat-window::-webkit-scrollbar {
+            width: 6px;
+        }
+        #chat-window::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        #chat-window::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 3px;
+        }
+        #chat-window::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        /* Styles for formatted AI responses */
+        .message-content ul {
+            list-style-type: disc;
+            padding-left: 20px;
+            margin-top: 8px;
+        }
+        .message-content li {
+            margin-bottom: 4px;
+        }
+        .message-content p {
+            margin-bottom: 8px;
+        }
+        .message-content p:last-child {
+            margin-bottom: 0;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center h-screen">
+
+    <div class="w-full max-w-2xl h-full md:h-[90vh] flex flex-col bg-white shadow-2xl rounded-xl">
+        <!-- Header -->
+        <div class="bg-blue-600 text-white p-4 rounded-t-xl flex items-center shadow-md">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mr-3" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.545 2.91A.5.5 0 006 14h8a.5.5 0 00.545-.09A5 5 0 0012 11V9a1 1 0 10-2 0v2z" clip-rule="evenodd" />
+            </svg>
+            <h1 class="text-2xl font-bold">Company HR Assistant</h1>
+        </div>
+
+        <!-- Chat Window -->
+        <div id="chat-window" class="flex-1 p-6 overflow-y-auto bg-gray-50">
+            <!-- Initial welcome message -->
+            <div class="flex items-start gap-3 mb-6">
+                <div class="bg-blue-500 text-white p-3 rounded-full h-10 w-10 flex items-center justify-center font-bold text-lg">AI</div>
+                <div class="bg-blue-100 text-gray-800 p-4 rounded-lg shadow-sm max-w-lg">
+                    <p class="font-semibold mb-1">HR Assistant</p>
+                    <p>Hello! I'm here to help you with your HR-related questions. How can I assist you today?</p>
+                </div>
+            </div>
+            <!-- Chat messages will be appended here -->
+        </div>
+
+        <!-- Input Area -->
+        <div class="p-4 bg-white border-t border-gray-200 rounded-b-xl">
+            <div class="flex items-center space-x-3">
+                <input type="text" id="user-input" placeholder="Ask a question about company policies, benefits, etc." class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                <button id="send-button" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 active:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-transform transform active:scale-95 disabled:bg-gray-400 disabled:cursor-not-allowed">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatWindow = document.getElementById('chat-window');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+
+        // --- Function to format markdown-like text to HTML ---
+        function formatAnswer(text) {
+            // Convert bold text: **text** -> <strong>text</strong>
+            let processedHtml = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+            const lines = processedHtml.split('\n');
+            let finalHtml = '';
+            let isList = false;
+
+            for (let i = 0; i < lines.length; i++) {
+                let line = lines[i].trim();
+                // Check for bullet points starting with '*'
+                if (line.startsWith('* ')) {
+                    if (!isList) {
+                        finalHtml += '<ul>';
+                        isList = true;
+                    }
+                    // Create a list item, removing the leading '* '
+                    finalHtml += `<li>${line.substring(2)}</li>`;
+                } else {
+                    // If we were in a list, close it
+                    if (isList) {
+                        finalHtml += '</ul>';
+                        isList = false;
+                    }
+                    // Wrap non-list lines in paragraphs for proper spacing
+                    if (line) {
+                       finalHtml += `<p>${line}</p>`;
+                    }
+                }
+            }
+
+            // Close any open list at the end
+            if (isList) {
+                finalHtml += '</ul>';
+            }
+
+            return finalHtml;
+        }
+
+        // --- Function to add a message to the chat window ---
+        function addMessage(sender, message, isUser = false) {
+            const messageElement = document.createElement('div');
+            
+            if (isUser) {
+                messageElement.className = 'flex items-start gap-3 mb-6 justify-end';
+                messageElement.innerHTML = `
+                    <div class="bg-gray-200 text-gray-800 p-4 rounded-lg shadow-sm max-w-lg">
+                        <p class="font-semibold mb-1">You</p>
+                        <p>${message}</p>
+                    </div>
+                    <div class="bg-gray-600 text-white p-3 rounded-full h-10 w-10 flex items-center justify-center font-bold text-lg">U</div>
+                `;
+            } else {
+                messageElement.className = 'flex items-start gap-3 mb-6';
+                messageElement.innerHTML = `
+                    <div class="bg-blue-500 text-white p-3 rounded-full h-10 w-10 flex items-center justify-center font-bold text-lg">AI</div>
+                    <div class="bg-blue-100 text-gray-800 p-4 rounded-lg shadow-sm max-w-lg">
+                        <p class="font-semibold mb-1">HR Assistant</p>
+                        <div class="message-content">${message}</div>
+                    </div>
+                `;
+            }
+            chatWindow.appendChild(messageElement);
+            chatWindow.scrollTop = chatWindow.scrollHeight; // Auto-scroll to the latest message
+            return messageElement;
+        }
+
+        // --- Function to handle sending a message ---
+        async function sendMessage() {
+            const question = userInput.value.trim();
+            if (!question) return;
+
+            // Display user's message
+            addMessage('You', question, true);
+            userInput.value = '';
+            sendButton.disabled = true;
+
+            // Display typing indicator
+            const typingIndicator = addMessage('HR Assistant', '<div class="typing-indicator"><span>.</span><span>.</span><span>.</span></div>');
+
+            try {
+                // --- THIS IS WHERE YOU CONNECT TO YOUR BACKEND ---
+                // This URL now points to your local Flask server.
+                const response = await fetch('http://127.0.0.1:5000/api/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ question: question }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                const answer = data.answer || "Sorry, I couldn't find an answer to that.";
+
+                // Replace typing indicator with the HTML-formatted answer
+                typingIndicator.querySelector('.message-content').innerHTML = formatAnswer(answer);
+
+            } catch (error) {
+                console.error('Error fetching response:', error);
+                const errorMessage = "I'm having trouble connecting to my knowledge base right now. Please try again later. (Is your python app.py server running?)";
+                typingIndicator.querySelector('.message-content').innerHTML = errorMessage;
+            } finally {
+                sendButton.disabled = false;
+                userInput.focus();
+            }
+        }
+
+        // --- Event Listeners ---
+        sendButton.addEventListener('click', sendMessage);
+        userInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+    </script>
+    <style>
+        /* Typing indicator animation */
+        .typing-indicator span {
+            animation-name: blink;
+            animation-duration: 1.4s;
+            animation-iteration-count: infinite;
+            animation-fill-mode: both;
+            font-size: 1.5rem;
+            line-height: 1;
+        }
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        @keyframes blink {
+            0% { opacity: .2; }
+            20% { opacity: 1; }
+            100% { opacity: .2; }
+        }
+    </style>
+</body>
+</html>
