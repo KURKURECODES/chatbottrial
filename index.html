@@ -1,193 +1,234 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="light"> <!-- Default to light mode -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HR Assistant</title>
+    <title>Chat Assistant</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        // Set theme on page load
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+
+        // Tailwind config for dark mode
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'dark-bg': '#1e293b',
+                        'dark-card': '#2f3b4d',
+                        'dark-input': '#475569',
+                        'dark-text': '#cbd5e1',
+                        'dark-primary': '#38bdf8',
+                        'user-bubble': '#3b82f6',
+                        'ai-bubble-light': '#e5e7eb',
+                        'ai-bubble-dark': '#4b5563',
+                    }
+                }
+            }
+        }
+    </script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
         }
-        /* Custom scrollbar for a cleaner look */
-        #chat-window::-webkit-scrollbar {
-            width: 6px;
-        }
-        #chat-window::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-        #chat-window::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 3px;
-        }
-        #chat-window::-webkit-scrollbar-thumb:hover {
-            background: #555;
-        }
+        /* Custom scrollbar */
+        #chat-window::-webkit-scrollbar { width: 6px; }
+        #chat-window::-webkit-scrollbar-track { background: transparent; }
+        #chat-window::-webkit-scrollbar-thumb { background: #888; border-radius: 3px; }
+        #chat-window::-webkit-scrollbar-thumb:hover { background: #555; }
+        
         /* Styles for formatted AI responses */
-        .message-content ul {
-            list-style-type: disc;
-            padding-left: 20px;
-            margin-top: 8px;
-        }
-        .message-content li {
-            margin-bottom: 4px;
-        }
-        .message-content p {
-            margin-bottom: 8px;
-        }
-        .message-content p:last-child {
-            margin-bottom: 0;
-        }
+        .message-content ul { list-style-type: disc; padding-left: 20px; margin-top: 8px; }
+        .message-content li { margin-bottom: 4px; }
+        .message-content p { margin-bottom: 8px; }
+        .message-content p:last-child { margin-bottom: 0; }
     </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center h-screen">
+<body class="bg-gray-100 dark:bg-dark-bg text-gray-800 dark:text-dark-text transition-colors duration-300">
 
-    <div class="w-full max-w-2xl h-full md:h-[90vh] flex flex-col bg-white shadow-2xl rounded-xl">
+    <div class="flex flex-col h-screen w-full max-w-4xl mx-auto p-4 md:p-8">
+        
         <!-- Header -->
-        <div class="bg-blue-600 text-white p-4 rounded-t-xl flex items-center shadow-md">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mr-3" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-6-3a2 2 0 11-4 0 2 2 0 014 0zm-2 4a5 5 0 00-4.545 2.91A.5.5 0 006 14h8a.5.5 0 00.545-.09A5 5 0 0012 11V9a1 1 0 10-2 0v2z" clip-rule="evenodd" />
-            </svg>
-            <h1 class="text-2xl font-bold">Company HR Assistant</h1>
-        </div>
+        <header class="flex justify-between items-center mb-4">
+            <div class="flex items-center gap-3">
+                <svg class="h-8 w-8 text-blue-500 dark:text-dark-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">ChatBot</h1>
+            </div>
+            <!-- Theme Toggle -->
+            <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                <svg id="theme-toggle-dark-icon" class="hidden h-6 w-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+                <svg id="theme-toggle-light-icon" class="hidden h-6 w-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
+            </button>
+        </header>
 
-        <!-- Chat Window -->
-        <div id="chat-window" class="flex-1 p-6 overflow-y-auto bg-gray-50">
-            <!-- Initial welcome message -->
-            <div class="flex items-start gap-3 mb-6">
-                <div class="bg-blue-500 text-white p-3 rounded-full h-10 w-10 flex items-center justify-center font-bold text-lg">AI</div>
-                <div class="bg-blue-100 text-gray-800 p-4 rounded-lg shadow-sm max-w-lg">
-                    <p class="font-semibold mb-1">HR Assistant</p>
-                    <p>Hello! I'm here to help you with your HR-related questions. How can I assist you today?</p>
+        <!-- Main Chat Area -->
+        <main class="flex-1 bg-white dark:bg-dark-card rounded-2xl shadow-lg flex flex-col overflow-hidden">
+            <div id="chat-window" class="flex-1 p-6 overflow-y-auto">
+                <!-- Welcome Message -->
+                <div class="flex items-end gap-3 mb-6">
+                    <img class="h-8 w-8 rounded-full object-cover" src="https://placehold.co/40x40/4b5563/ffffff?text=AI" alt="AI Avatar">
+                    <div class="bg-ai-bubble-light dark:bg-ai-bubble-dark text-gray-800 dark:text-dark-text p-4 rounded-t-2xl rounded-br-2xl max-w-lg shadow">
+                        <p class="font-semibold text-sm mb-1 text-gray-600 dark:text-gray-400">ChatBot</p>
+                        <div class="message-content">
+                            <p>Hello! How can I assist you today?</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Chat messages will be appended here -->
+            </div>
+
+            <!-- Input Area -->
+            <div class="p-4 bg-white dark:bg-dark-card border-t border-gray-200 dark:border-gray-600">
+                <div class="flex items-center bg-gray-100 dark:bg-dark-input rounded-xl p-2">
+                    <input type="text" id="user-input" placeholder="Type your message..." class="flex-1 bg-transparent border-none focus:ring-0 text-gray-800 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 px-3 py-2">
+                    <button id="send-button" class="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-dark-card transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 5l7 7-7 7" />
+                        </svg>
+                    </button>
                 </div>
             </div>
-            <!-- Chat messages will be appended here -->
-        </div>
-
-        <!-- Input Area -->
-        <div class="p-4 bg-white border-t border-gray-200 rounded-b-xl">
-            <div class="flex items-center space-x-3">
-                <input type="text" id="user-input" placeholder="Ask a question about company policies, benefits, etc." class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
-                <button id="send-button" class="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 active:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-transform transform active:scale-95 disabled:bg-gray-400 disabled:cursor-not-allowed">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7" />
-                    </svg>
-                </button>
-            </div>
-        </div>
+        </main>
     </div>
 
     <script>
         const chatWindow = document.getElementById('chat-window');
         const userInput = document.getElementById('user-input');
         const sendButton = document.getElementById('send-button');
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        const darkIcon = document.getElementById('theme-toggle-dark-icon');
+        const lightIcon = document.getElementById('theme-toggle-light-icon');
 
-        // --- Function to format markdown-like text to HTML ---
+        // --- Theme Toggling Logic ---
+        function toggleTheme() {
+            // toggle icons
+            darkIcon.classList.toggle('hidden');
+            lightIcon.classList.toggle('hidden');
+
+            // if set via local storage previously
+            if (localStorage.getItem('theme')) {
+                if (localStorage.getItem('theme') === 'light') {
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.setItem('theme', 'light');
+                }
+            // if NOT set via local storage previously
+            } else {
+                if (document.documentElement.classList.contains('dark')) {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.setItem('theme', 'light');
+                } else {
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                }
+            }
+        }
+        
+        // Show correct icon on page load
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            lightIcon.classList.remove('hidden');
+        } else {
+            darkIcon.classList.remove('hidden');
+        }
+
+        themeToggleBtn.addEventListener('click', toggleTheme);
+
+        // --- Formatting and Chat Logic ---
         function formatAnswer(text) {
-            // Convert bold text: **text** -> <strong>text</strong>
             let processedHtml = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-
             const lines = processedHtml.split('\n');
             let finalHtml = '';
             let isList = false;
 
             for (let i = 0; i < lines.length; i++) {
                 let line = lines[i].trim();
-                // Check for bullet points starting with '*'
                 if (line.startsWith('* ')) {
                     if (!isList) {
                         finalHtml += '<ul>';
                         isList = true;
                     }
-                    // Create a list item, removing the leading '* '
                     finalHtml += `<li>${line.substring(2)}</li>`;
                 } else {
-                    // If we were in a list, close it
                     if (isList) {
                         finalHtml += '</ul>';
                         isList = false;
                     }
-                    // Wrap non-list lines in paragraphs for proper spacing
                     if (line) {
                        finalHtml += `<p>${line}</p>`;
                     }
                 }
             }
-
-            // Close any open list at the end
             if (isList) {
                 finalHtml += '</ul>';
             }
-
             return finalHtml;
         }
 
-        // --- Function to add a message to the chat window ---
         function addMessage(sender, message, isUser = false) {
             const messageElement = document.createElement('div');
             
             if (isUser) {
-                messageElement.className = 'flex items-start gap-3 mb-6 justify-end';
+                messageElement.className = 'flex items-end justify-end gap-3 mb-6';
                 messageElement.innerHTML = `
-                    <div class="bg-gray-200 text-gray-800 p-4 rounded-lg shadow-sm max-w-lg">
-                        <p class="font-semibold mb-1">You</p>
+                    <div class="bg-user-bubble text-white p-4 rounded-t-2xl rounded-bl-2xl max-w-lg shadow">
+                        <p class="font-semibold text-sm mb-1 text-blue-200">User</p>
                         <p>${message}</p>
                     </div>
-                    <div class="bg-gray-600 text-white p-3 rounded-full h-10 w-10 flex items-center justify-center font-bold text-lg">U</div>
+                    <img class="h-8 w-8 rounded-full object-cover" src="https://placehold.co/40x40/3b82f6/ffffff?text=U" alt="User Avatar">
                 `;
             } else {
-                messageElement.className = 'flex items-start gap-3 mb-6';
+                messageElement.className = 'flex items-end gap-3 mb-6';
                 messageElement.innerHTML = `
-                    <div class="bg-blue-500 text-white p-3 rounded-full h-10 w-10 flex items-center justify-center font-bold text-lg">AI</div>
-                    <div class="bg-blue-100 text-gray-800 p-4 rounded-lg shadow-sm max-w-lg">
-                        <p class="font-semibold mb-1">HR Assistant</p>
+                    <img class="h-8 w-8 rounded-full object-cover" src="https://placehold.co/40x40/4b5563/ffffff?text=AI" alt="AI Avatar">
+                    <div class="bg-ai-bubble-light dark:bg-ai-bubble-dark text-gray-800 dark:text-dark-text p-4 rounded-t-2xl rounded-br-2xl max-w-lg shadow">
+                        <p class="font-semibold text-sm mb-1 text-gray-600 dark:text-gray-400">ChatBot</p>
                         <div class="message-content">${message}</div>
                     </div>
                 `;
             }
             chatWindow.appendChild(messageElement);
-            chatWindow.scrollTop = chatWindow.scrollHeight; // Auto-scroll to the latest message
+            chatWindow.scrollTop = chatWindow.scrollHeight;
             return messageElement;
         }
 
-        // --- Function to handle sending a message ---
         async function sendMessage() {
             const question = userInput.value.trim();
             if (!question) return;
 
-            // Display user's message
-            addMessage('You', question, true);
+            addMessage('User', question, true);
             userInput.value = '';
             sendButton.disabled = true;
 
-            // Display typing indicator
-            const typingIndicator = addMessage('HR Assistant', '<div class="typing-indicator"><span>.</span><span>.</span><span>.</span></div>');
+            const typingIndicator = addMessage('ChatBot', '<div class="typing-indicator"><span>.</span><span>.</span><span>.</span></div>');
 
             try {
-                // --- THIS IS WHERE YOU CONNECT TO YOUR BACKEND ---
-                // This URL now points to your local Flask server.
-                const response = await fetch('http://127.0.0.1:5000/api/ask', {
+                const response = await fetch('/api/ask', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ question: question }),
                 });
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
                 const data = await response.json();
-                const answer = data.answer || "Sorry, I couldn't find an answer to that.";
-
-                // Replace typing indicator with the HTML-formatted answer
+                const answer = data.answer || "Sorry, I couldn't find an answer.";
+                
                 typingIndicator.querySelector('.message-content').innerHTML = formatAnswer(answer);
 
             } catch (error) {
                 console.error('Error fetching response:', error);
-                const errorMessage = "I'm having trouble connecting to my knowledge base right now. Please try again later. (Is your python app.py server running?)";
+                const errorMessage = "I'm having trouble connecting. Please ensure the server is running and try again.";
                 typingIndicator.querySelector('.message-content').innerHTML = errorMessage;
             } finally {
                 sendButton.disabled = false;
@@ -195,36 +236,18 @@
             }
         }
 
-        // --- Event Listeners ---
         sendButton.addEventListener('click', sendMessage);
         userInput.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter') {
-                sendMessage();
-            }
+            if (event.key === 'Enter') sendMessage();
         });
 
     </script>
     <style>
         /* Typing indicator animation */
-        .typing-indicator span {
-            animation-name: blink;
-            animation-duration: 1.4s;
-            animation-iteration-count: infinite;
-            animation-fill-mode: both;
-            font-size: 1.5rem;
-            line-height: 1;
-        }
-        .typing-indicator span:nth-child(2) {
-            animation-delay: 0.2s;
-        }
-        .typing-indicator span:nth-child(3) {
-            animation-delay: 0.4s;
-        }
-        @keyframes blink {
-            0% { opacity: .2; }
-            20% { opacity: 1; }
-            100% { opacity: .2; }
-        }
+        .typing-indicator span { animation: blink 1.4s infinite both; font-size: 1.5rem; line-height: 1; }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes blink { 0% { opacity: .2; } 20% { opacity: 1; } 100% { opacity: .2; } }
     </style>
 </body>
 </html>
