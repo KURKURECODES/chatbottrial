@@ -63,10 +63,11 @@ def add_context_to_chunks(chunks, document_title):
     return [f"Document: {document_title} | Section {i+1}: {chunk}" for i, chunk in enumerate(chunks)]
 
 # STEP 4: LOAD AND PROCESS DOCUMENTS
-pdf_files = ["Placement Chronicles 2023-24.pdf", "SI Chronicles 23-24 Sem I.pdf"]
+# --- DOCUMENT LIST UPDATED AS PER YOUR REQUEST ---
+pdf_files = ["LogicLadder.pdf"] # Using the new LogicLadder document
 if not all(os.path.exists(f) for f in pdf_files):
-    print(f"Error: Missing required PDFs. Make sure {pdf_files} are in the same directory.")
-    exit() # Exit if files are missing
+    print(f"Error: Missing required PDF. Make sure {pdf_files[0]} is in the same directory.")
+    exit() # Exit if file is missing
 
 documents = {file: extract_text_from_pdf(file) for file in pdf_files if file.endswith('.pdf')}
 print(f"Extracted text from {len(documents)} documents.")
@@ -105,22 +106,25 @@ def search_similar_chunks(query, top_k=5):
 def format_docs(docs):
     return "\n\n".join([f"CONTEXT SECTION {i+1}:\n{doc}" for i, doc in enumerate(docs)])
 
+# --- PROMPT UPDATED TO BE MORE GENERIC ---
 rag_prompt_template = """
-You are a highly intelligent assistant with deep expertise in BITS Pilani's placement and internship chronicles.
-Your job is to answer questions using the CONTEXT provided below. Always follow these guidelines:
-INSTRUCTIONS:
-1. Read ALL sections of the context thoroughly.
-2. Extract and synthesize specific facts, figures, dates, names, and examples.
-3. Give clear and direct answers. Be as detailed and specific as possible.
-4. If the answer is not in the context, respond with: "The document does not contain enough information to answer this."
-5. Do NOT make up information. Stick strictly to the facts from the documents.
-6. Use bullet points or numbered lists wherever it improves clarity.
-7. Mention company names, job roles, stipend/salary figures, interview rounds, and stats when relevant.
+You are a helpful and intelligent assistant. Your job is to answer questions using the CONTEXT provided below.
+
+Follow these guidelines strictly:
+1. Read the context carefully to find the most relevant information.
+2. Synthesize facts, figures, and key details from the text.
+3. Provide clear, direct, and accurate answers based ONLY on the provided context.
+4. If the answer cannot be found in the context, you must respond with: "The provided document does not contain enough information to answer this question."
+5. Do not invent information or use any external knowledge.
+6. Use formatting like bullet points or lists if it helps make the answer clearer.
+
 --- CONTEXT START ---
 {context}
 --- CONTEXT END ---
+
 QUESTION: {question}
-Answer (strictly using context):
+
+Answer (based only on the context):
 """
 rag_prompt = ChatPromptTemplate.from_template(rag_prompt_template)
 llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.1, max_tokens=1024)
