@@ -4,6 +4,10 @@ FROM python:3.11-slim
 # Set the working directory in the container
 WORKDIR /code
 
+# --- FIX FOR PERMISSION ERROR ---
+# Set an environment variable to tell sentence-transformers to use a local cache
+ENV SENTENCE_TRANSFORMERS_HOME=/code/cache
+
 # Copy the requirements file into the container at /code
 COPY requirements.txt .
 
@@ -23,5 +27,3 @@ ENV PORT=8080
 # Run app.py when the container launches
 CMD ["python", "app.py"]
 
-
-# Note: Ensure that app.py is the entry point of your application
