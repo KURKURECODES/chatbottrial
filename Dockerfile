@@ -22,3 +22,6 @@ ENV PORT=8080
 
 # Run app.py when the container launches
 CMD ["python", "app.py"]
+
+
+# Note: Ensure that app.py is the entry point of your application
