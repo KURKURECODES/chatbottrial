@@ -1,0 +1,10 @@
+# Ignore the local model cache
+cache/
+
+# Python
+__pycache__/
+*.pyc
+.env
+
+# OS
+.DS_Store
