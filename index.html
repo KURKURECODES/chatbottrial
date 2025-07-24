@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="light"> <!-- Default to light mode -->
+<html lang="en" class="dark"> <!-- Default to dark mode for a ChatGPT feel -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -20,14 +20,14 @@
             theme: {
                 extend: {
                     colors: {
-                        'dark-bg': '#1e293b',
-                        'dark-card': '#2f3b4d',
-                        'dark-input': '#475569',
-                        'dark-text': '#cbd5e1',
-                        'dark-primary': '#38bdf8',
-                        'user-bubble': '#3b82f6',
-                        'ai-bubble-light': '#e5e7eb',
-                        'ai-bubble-dark': '#4b5563',
+                        'gpt-dark': '#202123',
+                        'gpt-light': '#ffffff',
+                        'gpt-gray': '#343541',
+                        'gpt-light-gray': '#f7f7f8',
+                        'user-bubble-dark': '#343541',
+                        'user-bubble-light': '#ffffff',
+                        'ai-bubble-dark': '#444654',
+                        'ai-bubble-light': '#f7f7f8',
                     }
                 }
             }
@@ -38,10 +38,10 @@
             font-family: 'Inter', sans-serif;
         }
         /* Custom scrollbar */
-        #chat-window::-webkit-scrollbar { width: 6px; }
+        #chat-window::-webkit-scrollbar { width: 8px; }
         #chat-window::-webkit-scrollbar-track { background: transparent; }
-        #chat-window::-webkit-scrollbar-thumb { background: #888; border-radius: 3px; }
-        #chat-window::-webkit-scrollbar-thumb:hover { background: #555; }
+        #chat-window::-webkit-scrollbar-thumb { background: #555; border-radius: 4px; }
+        #chat-window::-webkit-scrollbar-thumb:hover { background: #777; }
         
         /* Styles for formatted AI responses */
         .message-content ul { list-style-type: disc; padding-left: 20px; margin-top: 8px; }
@@ -50,55 +50,66 @@
         .message-content p:last-child { margin-bottom: 0; }
     </style>
 </head>
-<body class="bg-gray-100 dark:bg-dark-bg text-gray-800 dark:text-dark-text transition-colors duration-300">
+<body class="bg-gpt-light dark:bg-gpt-dark text-gray-800 dark:text-white transition-colors duration-300">
 
-    <div class="flex flex-col h-screen w-full max-w-4xl mx-auto p-4 md:p-8">
-        
-        <!-- Header -->
-        <header class="flex justify-between items-center mb-4">
-            <div class="flex items-center gap-3">
-                <svg class="h-8 w-8 text-blue-500 dark:text-dark-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <div class="bg-gpt-dark hidden md:flex flex-col w-64 p-2 space-y-2">
+            <button id="new-chat-btn" class="flex items-center gap-3 p-3 text-white text-sm rounded-lg hover:bg-gpt-gray transition-colors w-full">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                 </svg>
-                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">ChatBot</h1>
-            </div>
-            <!-- Theme Toggle -->
-            <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                <svg id="theme-toggle-dark-icon" class="hidden h-6 w-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
-                <svg id="theme-toggle-light-icon" class="hidden h-6 w-6" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
+                New chat
             </button>
-        </header>
+            <button id="summarize-btn" class="flex items-center gap-3 p-3 text-white text-sm rounded-lg hover:bg-gpt-gray transition-colors w-full">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+                ✨ Summarize Conversation
+            </button>
+            <div class="flex-grow"></div>
+            <!-- Theme Toggle -->
+            <button id="theme-toggle" class="flex items-center gap-3 p-3 text-white text-sm rounded-lg hover:bg-gpt-gray transition-colors w-full">
+                 <svg id="theme-toggle-dark-icon" class="hidden h-5 w-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+                 <svg id="theme-toggle-light-icon" class="hidden h-5 w-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
+                <span id="theme-toggle-text">Light mode</span>
+            </button>
+        </div>
 
         <!-- Main Chat Area -->
-        <main class="flex-1 bg-white dark:bg-dark-card rounded-2xl shadow-lg flex flex-col overflow-hidden">
-            <div id="chat-window" class="flex-1 p-6 overflow-y-auto">
-                <!-- Welcome Message -->
-                <div class="flex items-end gap-3 mb-6">
-                    <img class="h-8 w-8 rounded-full object-cover" src="https://placehold.co/40x40/4b5563/ffffff?text=AI" alt="AI Avatar">
-                    <div class="bg-ai-bubble-light dark:bg-ai-bubble-dark text-gray-800 dark:text-dark-text p-4 rounded-t-2xl rounded-br-2xl max-w-lg shadow">
-                        <p class="font-semibold text-sm mb-1 text-gray-600 dark:text-gray-400">ChatBot</p>
-                        <div class="message-content">
-                            <p>Hello! How can I assist you today?</p>
-                        </div>
-                    </div>
-                </div>
-                <!-- Chat messages will be appended here -->
+        <div class="flex-1 flex flex-col bg-gpt-light dark:bg-gpt-gray overflow-hidden">
+            <div id="chat-window" class="flex-1 overflow-y-auto">
+                <!-- Messages will be injected here -->
             </div>
 
             <!-- Input Area -->
-            <div class="p-4 bg-white dark:bg-dark-card border-t border-gray-200 dark:border-gray-600">
-                <div class="flex items-center bg-gray-100 dark:bg-dark-input rounded-xl p-2">
+            <div class="w-full max-w-3xl mx-auto p-4 md:p-6">
+                <div class="flex items-center bg-white dark:bg-gpt-gray border border-gray-300 dark:border-gray-500 rounded-xl p-2 shadow-md">
                     <input type="text" id="user-input" placeholder="Type your message..." class="flex-1 bg-transparent border-none focus:ring-0 text-gray-800 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 px-3 py-2">
-                    <button id="send-button" class="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-dark-card transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed">
+                    <button id="send-button" class="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gpt-gray transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14" />
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 5l7 7-7 7" />
+                           <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
                         </svg>
                     </button>
                 </div>
+                 <p class="text-xs text-center text-gray-400 dark:text-gray-500 mt-2">A RAG-powered chatbot. May produce inaccurate information.</p>
             </div>
-        </main>
+        </div>
     </div>
+    
+    <!-- Summary Modal -->
+    <div id="summary-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4">
+        <div class="bg-white dark:bg-gpt-gray rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <div class="flex justify-between items-center p-4 border-b dark:border-gray-600">
+                <h3 class="text-lg font-semibold">Conversation Summary</h3>
+                <button id="close-modal-btn" class="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">&times;</button>
+            </div>
+            <div id="summary-content" class="p-6 overflow-y-auto">
+                <!-- Summary will be injected here -->
+            </div>
+        </div>
+    </div>
+
 
     <script>
         const chatWindow = document.getElementById('chat-window');
@@ -107,42 +118,83 @@
         const themeToggleBtn = document.getElementById('theme-toggle');
         const darkIcon = document.getElementById('theme-toggle-dark-icon');
         const lightIcon = document.getElementById('theme-toggle-light-icon');
+        const themeToggleText = document.getElementById('theme-toggle-text');
+        const newChatBtn = document.getElementById('new-chat-btn');
+        const summarizeBtn = document.getElementById('summarize-btn');
+        const summaryModal = document.getElementById('summary-modal');
+        const summaryContent = document.getElementById('summary-content');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        let chatHistory = [];
 
-        // --- Theme Toggling Logic ---
-        function toggleTheme() {
-            // toggle icons
-            darkIcon.classList.toggle('hidden');
-            lightIcon.classList.toggle('hidden');
+        // --- Gemini API Call ---
+        async function callGemini(prompt) {
+            const apiKey = ""; // Canvas will provide the key
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+            const payload = { contents: [{ parts: [{ text: prompt }] }] };
 
-            // if set via local storage previously
-            if (localStorage.getItem('theme')) {
-                if (localStorage.getItem('theme') === 'light') {
-                    document.documentElement.classList.add('dark');
-                    localStorage.setItem('theme', 'dark');
-                } else {
-                    document.documentElement.classList.remove('dark');
-                    localStorage.setItem('theme', 'light');
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!response.ok) {
+                    throw new Error(`API call failed with status: ${response.status}`);
                 }
-            // if NOT set via local storage previously
-            } else {
-                if (document.documentElement.classList.contains('dark')) {
-                    document.documentElement.classList.remove('dark');
-                    localStorage.setItem('theme', 'light');
-                } else {
-                    document.documentElement.classList.add('dark');
-                    localStorage.setItem('theme', 'dark');
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0) {
+                    return result.candidates[0].content.parts[0].text;
                 }
+                return "Sorry, I couldn't generate a response.";
+            } catch (error) {
+                console.error("Gemini API call error:", error);
+                return "Error calling the generation service.";
             }
         }
-        
-        // Show correct icon on page load
-        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            lightIcon.classList.remove('hidden');
-        } else {
-            darkIcon.classList.remove('hidden');
+
+        // --- Theme Toggling Logic ---
+        function updateTheme(isDark) {
+            darkIcon.classList.toggle('hidden', !isDark);
+            lightIcon.classList.toggle('hidden', isDark);
+            themeToggleText.textContent = isDark ? 'Light mode' : 'Dark mode';
         }
 
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            updateTheme(isDark);
+        }
+        
+        const isCurrentlyDark = document.documentElement.classList.contains('dark');
+        updateTheme(isCurrentlyDark);
         themeToggleBtn.addEventListener('click', toggleTheme);
+        
+        // --- New Conversation & Summary Logic ---
+        function startNewConversation() {
+            chatWindow.innerHTML = ''; 
+            chatHistory = [];
+            addMessage('ChatBot', 'Hello! How can I assist you today?');
+        }
+        newChatBtn.addEventListener('click', startNewConversation);
+
+        async function handleSummarize() {
+            if (chatHistory.length === 0) {
+                summaryContent.innerHTML = "<p>The conversation is empty. Nothing to summarize.</p>";
+                summaryModal.classList.remove('hidden');
+                summaryModal.classList.add('flex');
+                return;
+            }
+            summaryContent.innerHTML = "<p>Generating summary...</p>";
+            summaryModal.classList.remove('hidden');
+            summaryModal.classList.add('flex');
+            
+            const historyText = chatHistory.map(entry => `${entry.role}: ${entry.text}`).join('\n');
+            const prompt = `Please provide a concise summary of the following conversation:\n\n${historyText}`;
+            const summary = await callGemini(prompt);
+            summaryContent.innerHTML = formatAnswer(summary);
+        }
+        summarizeBtn.addEventListener('click', handleSummarize);
+        closeModalBtn.addEventListener('click', () => summaryModal.classList.add('hidden'));
 
         // --- Formatting and Chat Logic ---
         function formatAnswer(text) {
@@ -154,65 +206,74 @@
             for (let i = 0; i < lines.length; i++) {
                 let line = lines[i].trim();
                 if (line.startsWith('* ')) {
-                    if (!isList) {
-                        finalHtml += '<ul>';
-                        isList = true;
-                    }
+                    if (!isList) { finalHtml += '<ul>'; isList = true; }
                     finalHtml += `<li>${line.substring(2)}</li>`;
                 } else {
-                    if (isList) {
-                        finalHtml += '</ul>';
-                        isList = false;
-                    }
-                    if (line) {
-                       finalHtml += `<p>${line}</p>`;
-                    }
+                    if (isList) { finalHtml += '</ul>'; isList = false; }
+                    if (line) { finalHtml += `<p>${line}</p>`; }
                 }
             }
-            if (isList) {
-                finalHtml += '</ul>';
-            }
+            if (isList) { finalHtml += '</ul>'; }
             return finalHtml;
         }
 
         function addMessage(sender, message, isUser = false) {
-            const messageElement = document.createElement('div');
+            const messageWrapper = document.createElement('div');
+            messageWrapper.className = `p-6 ${isUser ? 'bg-user-bubble-light dark:bg-user-bubble-dark' : 'bg-ai-bubble-dark dark:bg-ai-bubble-dark'}`;
             
-            if (isUser) {
-                messageElement.className = 'flex items-end justify-end gap-3 mb-6';
-                messageElement.innerHTML = `
-                    <div class="bg-user-bubble text-white p-4 rounded-t-2xl rounded-bl-2xl max-w-lg shadow">
-                        <p class="font-semibold text-sm mb-1 text-blue-200">User</p>
-                        <p>${message}</p>
-                    </div>
-                    <img class="h-8 w-8 rounded-full object-cover" src="https://placehold.co/40x40/3b82f6/ffffff?text=U" alt="User Avatar">
-                `;
-            } else {
-                messageElement.className = 'flex items-end gap-3 mb-6';
-                messageElement.innerHTML = `
-                    <img class="h-8 w-8 rounded-full object-cover" src="https://placehold.co/40x40/4b5563/ffffff?text=AI" alt="AI Avatar">
-                    <div class="bg-ai-bubble-light dark:bg-ai-bubble-dark text-gray-800 dark:text-dark-text p-4 rounded-t-2xl rounded-br-2xl max-w-lg shadow">
-                        <p class="font-semibold text-sm mb-1 text-gray-600 dark:text-gray-400">ChatBot</p>
-                        <div class="message-content">${message}</div>
-                    </div>
-                `;
-            }
-            chatWindow.appendChild(messageElement);
+            const messageContentDiv = document.createElement('div');
+            messageContentDiv.className = 'w-full max-w-3xl mx-auto flex items-start gap-4';
+            
+            const avatar = `<img class="h-8 w-8 rounded-full object-cover" src="https://placehold.co/40x40/${isUser ? '3b82f6/ffffff?text=U' : '4b5563/ffffff?text=AI'}" alt="${sender} Avatar">`;
+            const messageBody = `<div class="flex-1 message-content">${message}</div>`;
+            
+            messageContentDiv.innerHTML = avatar + messageBody;
+            messageWrapper.appendChild(messageContentDiv);
+            chatWindow.appendChild(messageWrapper);
             chatWindow.scrollTop = chatWindow.scrollHeight;
-            return messageElement;
+            return messageWrapper;
+        }
+
+        async function generateFollowUps(lastResponse) {
+            const prompt = `Based on the following statement: "${lastResponse}", generate three concise and relevant follow-up questions a user might ask. Present them as a simple list, each on a new line, without any numbering or bullet points.`;
+            const suggestionsText = await callGemini(prompt);
+            const suggestions = suggestionsText.split('\n').filter(s => s.trim() !== '');
+
+            const suggestionsContainer = document.createElement('div');
+            suggestionsContainer.className = 'w-full max-w-3xl mx-auto flex flex-wrap items-center gap-2 pt-4';
+            
+            suggestions.slice(0, 3).forEach(q => {
+                const button = document.createElement('button');
+                button.className = 'text-sm border border-gray-400 dark:border-gray-500 rounded-full px-3 py-1 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors';
+                button.textContent = `✨ ${q}`;
+                button.onclick = () => {
+                    userInput.value = q;
+                    sendMessage();
+                };
+                suggestionsContainer.appendChild(button);
+            });
+            
+            // Append after the last message
+            const lastMessageWrapper = chatWindow.lastChild;
+            if (lastMessageWrapper) {
+                 lastMessageWrapper.querySelector('.message-content').parentNode.appendChild(suggestionsContainer);
+            }
+            chatWindow.scrollTop = chatWindow.scrollHeight;
         }
 
         async function sendMessage() {
             const question = userInput.value.trim();
             if (!question) return;
-
+            
+            chatHistory.push({ role: 'User', text: question });
             addMessage('User', question, true);
             userInput.value = '';
             sendButton.disabled = true;
 
-            const typingIndicator = addMessage('ChatBot', '<div class="typing-indicator"><span>.</span><span>.</span><span>.</span></div>');
+            const typingIndicatorWrapper = addMessage('ChatBot', '<div class="typing-indicator"><span>.</span><span>.</span><span>.</span></div>');
 
             try {
+                // NOTE: For local testing, change this to http://127.0.0.1:8080/api/ask
                 const response = await fetch('/api/ask', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -224,12 +285,14 @@
                 const data = await response.json();
                 const answer = data.answer || "Sorry, I couldn't find an answer.";
                 
-                typingIndicator.querySelector('.message-content').innerHTML = formatAnswer(answer);
+                chatHistory.push({ role: 'AI', text: answer });
+                typingIndicatorWrapper.querySelector('.message-content').innerHTML = formatAnswer(answer);
+                await generateFollowUps(answer); // Generate follow-up questions
 
             } catch (error) {
                 console.error('Error fetching response:', error);
                 const errorMessage = "I'm having trouble connecting. Please ensure the server is running and try again.";
-                typingIndicator.querySelector('.message-content').innerHTML = errorMessage;
+                typingIndicatorWrapper.querySelector('.message-content').innerHTML = errorMessage;
             } finally {
                 sendButton.disabled = false;
                 userInput.focus();
@@ -240,6 +303,9 @@
         userInput.addEventListener('keydown', (event) => {
             if (event.key === 'Enter') sendMessage();
         });
+        
+        // Start with a fresh conversation on page load
+        startNewConversation();
 
     </script>
     <style>
