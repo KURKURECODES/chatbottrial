@@ -1,129 +1,53 @@
-# STEP 1: INSTALL REQUIRED LIBRARIES
-# pip install Flask Flask-Cors pypdf PyMuPDF sentence-transformers faiss-cpu langchain langchain-google-genai langchain-core waitress
-
-# STEP 2: IMPORT LIBRARIES
 import os
-import fitz  # PyMuPDF
-import re
 import pickle
-import numpy as np
-from pathlib import Path
-import warnings
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-
 from sentence_transformers import SentenceTransformer
 import faiss
-
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
-from waitress import serve # Import waitress
-
-warnings.filterwarnings('ignore')
 
 # --- IMPORTANT: API KEY SETUP ---
-# Load the API key from an environment variable for security
 GEMINI_API_KEY = os.getenv("GOOGLE_API_KEY")
 if not GEMINI_API_KEY:
-    raise ValueError("Error: GOOGLE_API_KEY environment variable not set! Please set it before running the app.")
+    raise ValueError("Error: GOOGLE_API_KEY environment variable not set!")
 os.environ["GOOGLE_API_KEY"] = GEMINI_API_KEY
 print("Gemini API key configured successfully!")
 
+# --- LOAD PRE-COMPUTED ARTIFACTS ---
+print("Loading pre-computed artifacts...")
+# Load the FAISS index from disk
+index = faiss.read_index("faiss_index.bin")
+# Load the text chunks from disk
+with open("chunks.pkl", "rb") as f:
+    chunks = pickle.load(f)
 
-# --- ONE-TIME SETUP: This code runs only once when the server starts ---
+# Load the sentence transformer model
+embedding_model = SentenceTransformer('all-MiniLM-L6-v2', cache_folder='./cache')
+print("Artifacts loaded successfully.")
 
-print("Starting server... This may take a moment.")
-
-# STEP 3: DOCUMENT PROCESSING FUNCTIONS
-def extract_text_from_pdf(pdf_path):
-    doc = fitz.open(pdf_path)
-    text = ""
-    for page_num in range(len(doc)):
-        text += doc.load_page(page_num).get_text()
-    doc.close()
-    return text
-
-def clean_text(text: str) -> str:
-    text = re.sub(r'\s+', ' ', text)
-    text = re.sub(r'[^\w\s.,!?-]', '', text)
-    return text.strip()
-
-def chunk_text(text: str, chunk_size: int = 800, overlap: int = 200) -> list[str]:
-    words = text.split()
-    chunks = []
-    for i in range(0, len(words), chunk_size - overlap):
-        chunk = ' '.join(words[i:i + chunk_size])
-        if chunk.strip():
-            chunks.append(chunk)
-    return chunks
-
-def add_context_to_chunks(chunks, document_title):
-    return [f"Document: {document_title} | Section {i+1}: {chunk}" for i, chunk in enumerate(chunks)]
-
-# STEP 4: LOAD AND PROCESS DOCUMENTS
-# --- DOCUMENT LIST UPDATED AS PER YOUR REQUEST ---
-pdf_files = ["LogicLadder.pdf"] # Using the new LogicLadder document
-if not all(os.path.exists(f) for f in pdf_files):
-    print(f"Error: Missing required PDF. Make sure {pdf_files[0]} is in the same directory.")
-    exit() # Exit if file is missing
-
-documents = {file: extract_text_from_pdf(file) for file in pdf_files if file.endswith('.pdf')}
-print(f"Extracted text from {len(documents)} documents.")
-
-all_chunks = []
-chunk_metadata = []
-for filename, text in documents.items():
-    cleaned = clean_text(text)
-    chunks = chunk_text(cleaned)
-    contextualized = add_context_to_chunks(chunks, filename)
-    for i, (chunk, context_chunk) in enumerate(zip(chunks, contextualized)):
-        all_chunks.append(context_chunk)
-        chunk_metadata.append({
-            'source': filename,
-            'chunk_id': i,
-            'text': chunk,
-            'contextualized_text': context_chunk
-        })
-print(f"Created {len(all_chunks)} total text chunks.")
-
-# STEP 5: CREATE EMBEDDINGS AND FAISS INDEX
-print("Creating embeddings and vector store... (This is a one-time process)")
-embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-embeddings = embedding_model.encode(all_chunks, normalize_embeddings=True, show_progress_bar=True)
-dimension = embeddings.shape[1]
-index = faiss.IndexFlatL2(dimension)
-index.add(embeddings.astype('float32'))
-print(f"FAISS index created with {index.ntotal} vectors.")
-
-# STEP 6: RETRIEVAL AND RAG CHAIN SETUP
+# --- RAG CHAIN SETUP ---
 def search_similar_chunks(query, top_k=5):
     query_embedding = embedding_model.encode([query], normalize_embeddings=True)
     _, indices = index.search(query_embedding.astype('float32'), top_k)
-    return [chunk_metadata[idx]['text'] for idx in indices[0] if idx < len(chunk_metadata)]
+    return [chunks[idx] for idx in indices[0]]
 
 def format_docs(docs):
     return "\n\n".join([f"CONTEXT SECTION {i+1}:\n{doc}" for i, doc in enumerate(docs)])
 
-# --- PROMPT UPDATED TO BE MORE GENERIC ---
 rag_prompt_template = """
 You are a helpful and intelligent assistant. Your job is to answer questions using the CONTEXT provided below.
-
 Follow these guidelines strictly:
 1. Read the context carefully to find the most relevant information.
-2. Synthesize facts, figures, and key details from the text.
-3. Provide clear, direct, and accurate answers based ONLY on the provided context.
-4. If the answer cannot be found in the context, you must respond with: "The provided document does not contain enough information to answer this question."
-5. Do not invent information or use any external knowledge.
-6. Use formatting like bullet points or lists if it helps make the answer clearer.
-
+2. Provide clear, direct, and accurate answers based ONLY on the provided context.
+3. If the answer cannot be found in the context, you must respond with: "The provided document does not contain enough information to answer this question."
+4. Do not invent information or use any external knowledge.
 --- CONTEXT START ---
 {context}
 --- CONTEXT END ---
-
 QUESTION: {question}
-
 Answer (based only on the context):
 """
 rag_prompt = ChatPromptTemplate.from_template(rag_prompt_template)
@@ -139,35 +63,24 @@ print("Gemini RAG chain is ready!")
 
 
 # --- FLASK API ---
+# The 'app' variable is what Gunicorn will look for
 app = Flask(__name__, static_folder='.', static_url_path='')
-CORS(app) 
+CORS(app)
 
-# API endpoint to handle questions
 @app.route('/api/ask', methods=['POST'])
 def ask_question():
-    """API endpoint to ask a question to the RAG pipeline."""
-    if not request.json or 'question' not in request.json:
+    question = request.json.get('question')
+    if not question:
         return jsonify({"error": "Missing 'question' in request body"}), 400
-
-    question = request.json['question']
-    print(f"Received Question: {question}")
-
     try:
         answer = rag_chain.invoke(question).strip()
-        print(f"Sending Answer: {answer[:100]}...")
         return jsonify({"answer": answer})
     except Exception as e:
-        print(f"Error during RAG chain invocation: {e}")
-        return jsonify({"error": "Failed to process the question."}), 500
+        return jsonify({"error": str(e)}), 500
 
-# Route to serve the frontend (index.html)
 @app.route('/')
 def serve_frontend():
     return send_from_directory('.', 'index.html')
 
-
-if __name__ == '__main__':
-    # Use Waitress as the production server
-    port = int(os.environ.get('PORT', 8080))
-    print(f"Starting production server on http://0.0.0.0:{port}")
-    serve(app, host='0.0.0.0', port=port)
+# Note: The if __name__ == '__main__': block is no longer needed
+# as Gunicorn is now our entry point.

@@ -4,7 +4,6 @@ FROM python:3.11-slim
 # Set the working directory in the container
 WORKDIR /code
 
-# --- FIX FOR PERMISSION ERROR ---
 # Create a non-root user to run the application
 RUN useradd -m -u 1000 appuser
 # Set an environment variable to tell sentence-transformers to use a local cache
@@ -14,11 +13,13 @@ ENV SENTENCE_TRANSFORMERS_HOME=/code/cache
 COPY requirements.txt .
 
 # Install any needed packages specified in requirements.txt
-# We use --no-cache-dir to keep the image size small
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of your application's code into the container
+# Copy all application code
 COPY . .
+
+# Run the preloading script as root to ensure permissions for downloading
+RUN python preload_models.py
 
 # Change the ownership of the code directory to the new user
 RUN chown -R appuser:appuser /code
@@ -26,11 +27,12 @@ RUN chown -R appuser:appuser /code
 # Switch to the non-root user
 USER appuser
 
-# Expose the port the app runs on
+# Expose the port the app runs on (Gunicorn will use this)
 EXPOSE 8080
 
-# Define environment variable for the port (Hugging Face will set this)
+# Define environment variable for the port
 ENV PORT=8080
 
-# Run app.py when the container launches
-CMD ["python", "app.py"]
+# Run the app with Gunicorn when the container launches
+# --timeout 0 prevents the server from crashing during long model load times
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--timeout", "0", "app:app"]
