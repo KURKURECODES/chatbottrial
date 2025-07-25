@@ -18,17 +18,15 @@ print("Gemini API key configured successfully!")
 
 # --- LOAD PRE-COMPUTED ARTIFACTS ---
 print("Loading pre-computed artifacts...")
-# Load the FAISS index from disk
 index = faiss.read_index("faiss_index.bin")
-# Load the text chunks from disk
 with open("chunks.pkl", "rb") as f:
     chunks = pickle.load(f)
-
-# Load the sentence transformer model
 embedding_model = SentenceTransformer('all-MiniLM-L6-v2', cache_folder='./cache')
 print("Artifacts loaded successfully.")
 
-# --- RAG CHAIN SETUP ---
+# --- LLM and RAG CHAIN SETUP ---
+llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.1, max_tokens=1024)
+
 def search_similar_chunks(query, top_k=5):
     query_embedding = embedding_model.encode([query], normalize_embeddings=True)
     _, indices = index.search(query_embedding.astype('float32'), top_k)
@@ -37,44 +35,72 @@ def search_similar_chunks(query, top_k=5):
 def format_docs(docs):
     return "\n\n".join([f"CONTEXT SECTION {i+1}:\n{doc}" for i, doc in enumerate(docs)])
 
+# --- NEW CONVERSATIONAL PROMPT ---
 rag_prompt_template = """
-You are a helpful and intelligent assistant. Your job is to answer questions using the CONTEXT provided below.
-Follow these guidelines strictly:
-1. Read the context carefully to find the most relevant information.
-2. Provide clear, direct, and accurate answers based ONLY on the provided context.
-3. If the answer cannot be found in the context, you must respond with: "The provided document does not contain enough information to answer this question."
-4. Do not invent information or use any external knowledge.
+You are an intelligent HR assistant. Your goal is to provide accurate answers based on the CONTEXT provided.
+You must follow a two-step process:
+
+Step 1: Analyze the user's question and the conversation history.
+- The user's latest question is: "{question}"
+- The conversation history is:
+{chat_history}
+
+Step 2: Analyze the retrieved CONTEXT below.
 --- CONTEXT START ---
 {context}
 --- CONTEXT END ---
-QUESTION: {question}
-Answer (based only on the context):
+
+Step 3: Decide your action.
+- **If the CONTEXT provides different information based on a user's role, position, or level (e.g., different travel budgets for Associates vs. CEOs), AND the user has NOT yet provided this information in the conversation history, your ONLY response must be to ask for the missing information.** For example, respond with: "To provide the most accurate information, could you please tell me your position or level?"
+- **Otherwise, answer the user's latest question using the conversation history and the retrieved CONTEXT.** If the user is providing the information you just asked for, use it to answer their original question. If the context doesn't contain the answer, say so.
 """
 rag_prompt = ChatPromptTemplate.from_template(rag_prompt_template)
-llm = ChatGoogleGenerativeAI(model="gemini-1.5-flash", temperature=0.1, max_tokens=1024)
+
+def format_chat_history(history):
+    if not history:
+        return "No history."
+    return "\n".join([f"{msg['role']}: {msg['text']}" for msg in history])
 
 rag_chain = (
-    {"context": lambda x: format_docs(search_similar_chunks(x, top_k=5)), "question": RunnablePassthrough()}
+    {
+        "context": lambda x: format_docs(search_similar_chunks(x["question"])),
+        "question": lambda x: x["question"],
+        "chat_history": lambda x: format_chat_history(x["chat_history"])
+    }
     | rag_prompt
     | llm
     | StrOutputParser()
 )
-print("Gemini RAG chain is ready!")
+print("Gemini Conversational RAG chain is ready!")
 
 
 # --- FLASK API ---
-# The 'app' variable is what Gunicorn will look for
-app = Flask(__name__, static_folder='.', static_url_path='')
+app = Flask(__name__)
 CORS(app)
 
 @app.route('/api/ask', methods=['POST'])
 def ask_question():
-    question = request.json.get('question')
+    data = request.get_json()
+    question = data.get('question')
+    chat_history = data.get('chat_history', []) # Expect chat history from frontend
     if not question:
         return jsonify({"error": "Missing 'question' in request body"}), 400
     try:
-        answer = rag_chain.invoke(question).strip()
+        # Pass the question and history to the chain
+        answer = rag_chain.invoke({"question": question, "chat_history": chat_history}).strip()
         return jsonify({"answer": answer})
+    except Exception as e:
+        print(f"Error in RAG chain: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/generate', methods=['POST'])
+def generate_text():
+    prompt = request.json.get('prompt')
+    if not prompt:
+        return jsonify({"error": "Missing 'prompt' in request body"}), 400
+    try:
+        response = llm.invoke(prompt)
+        return jsonify({"text": response.content})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -82,5 +108,5 @@ def ask_question():
 def serve_frontend():
     return send_from_directory('.', 'index.html')
 
-# Note: The if __name__ == '__main__': block is no longer needed
-# as Gunicorn is now our entry point.
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8080, debug=True)
